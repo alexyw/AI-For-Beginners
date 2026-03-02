@@ -17,9 +17,15 @@ jobs:
 
       - name: 强制推送到 Gitea
         run: |
-          # 构造带 Token 的认证地址，隐藏敏感信息
-          # 格式: https://token@yourdomain.com/user/repo.git
-          REMOTE_URL=$(echo "${{ secrets.GITEA_URL }}" | sed "s/https:\/\//https:\/\/x-access-token:${{ secrets.GITEA_TOKEN }}@/")
-          
-          # 强制镜像推送所有分支和标签
-          git push --mirror "$REMOTE_URL"
+          # 1. 提取原始 URL（去掉协议头）
+          # 假设 GITEA_URL 是 http://mydomain.com:1070/alex/repo.git
+          RAW_URL=$(echo "${{ secrets.GITEA_URL }}" | sed -E 's/https?:\/\///')
+
+          # 2. 重新构造带 Token 的认证地址
+          # Gitea 的 PAT 令牌可以直接作为“用户名”放在 URL 中，无需密码
+          # 最终格式: http://TOKEN@mydomain.com:1070/alex/repo.git
+          AUTH_URL="http://${{ secrets.GITEA_TOKEN }}@${RAW_URL}"
+
+          # 3. 执行镜像推送
+          # 使用 -c http.sslVerify=false 是为了防止自签名证书导致的问题（如果以后改用 https）
+          git -c http.sslVerify=false push --mirror "$AUTH_URL"
