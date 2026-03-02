@@ -1,0 +1,25 @@
+name: 同步到私有 Gitea
+
+on:
+  push:                # 当有代码推送时触发
+  workflow_dispatch:   # 允许手动触发
+  schedule:
+    - cron: '0 */12 * * *' # 每 6 小时自动强制同步一次，防止漏掉镜像更新
+
+jobs:
+  mirror_to_gitea:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # 必须设为 0，否则无法获取完整的历史记录和所有分支
+
+      - name: 强制推送到 Gitea
+        run: |
+          # 构造带 Token 的认证地址，隐藏敏感信息
+          # 格式: https://token@yourdomain.com/user/repo.git
+          REMOTE_URL=$(echo "${{ secrets.GITEA_URL }}" | sed "s/https:\/\//https:\/\/x-access-token:${{ secrets.GITEA_TOKEN }}@/")
+          
+          # 强制镜像推送所有分支和标签
+          git push --mirror "$REMOTE_URL"
